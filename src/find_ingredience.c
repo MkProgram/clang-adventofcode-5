@@ -43,6 +43,47 @@ int compare_ranges(const void *a, const void *b) {
   return 0;
 }
 
+bool merge_ranges(IdRange *ranges, size_t count) {
+
+  IdRange *merged_ranges = NULL;
+  size_t range_cap = 0;
+  size_t merge_count = 0;
+
+  for (size_t i = 0; i < count; i++) {
+    if (i == range_cap) {
+      range_cap = range_cap == 0 ? 4 : range_cap * 2;
+      IdRange *grown =
+          realloc(merged_ranges, range_cap * sizeof(*merged_ranges));
+      if (grown == NULL) {
+        fprintf(stderr,
+                "Cannot allocate enough mermory for merging ranges. Count: %zu",
+                i);
+        return false;
+      }
+      merged_ranges = grown;
+    }
+    if (i == 0) {
+      merged_ranges[merge_count] = ranges[i];
+      merge_count++;
+      continue;
+    }
+
+    IdRange prev = ranges[i - 1];
+    IdRange current = ranges[i];
+
+    if (current.start < prev.end) {
+      merged_ranges[merge_count] = (IdRange){prev.start, current.end};
+      merge_count++;
+      continue;
+    }
+    merged_ranges[merge_count] = current;
+    merge_count++;
+  }
+  *ranges = *merged_ranges;
+
+  return true;
+}
+
 size_t get_spoiled_ingredience(FILE *file) {
 
   char *line = NULL;
@@ -67,6 +108,7 @@ size_t get_spoiled_ingredience(FILE *file) {
     if (strlen(line) == 0) {
       ranges_gathered = true;
       qsort(fresh_ranges, count, sizeof(*fresh_ranges), compare_ranges);
+      merge_ranges(fresh_ranges, count);
       continue;
     }
     if (count == range_cap) {
