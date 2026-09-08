@@ -23,7 +23,7 @@ bool ingredient_is_fresh(char *line, IdRange *fresh_ranges,
                          size_t range_count) {
   char *endptr;
   uintmax_t id = strtoumax(line, &endptr, 10);
-  for (size_t i = 0; i <= range_count; ++i) {
+  for (size_t i = 0; i < range_count; ++i) {
     if (id >= fresh_ranges[i].start && id <= fresh_ranges[i].end) {
       return true;
     }
@@ -43,48 +43,41 @@ int compare_ranges(const void *a, const void *b) {
   return 0;
 }
 
-bool merge_ranges(IdRange *ranges, size_t count) {
+bool merge_ranges(IdRange *ranges, size_t *count) {
 
-  IdRange *merged_ranges = NULL;
-  size_t range_cap = 0;
   size_t merge_count = 0;
 
-  for (size_t i = 0; i < count; i++) {
-    if (i == range_cap) {
-      range_cap = range_cap == 0 ? 4 : range_cap * 2;
-      IdRange *grown =
-          realloc(merged_ranges, range_cap * sizeof(*merged_ranges));
-      if (grown == NULL) {
-        fprintf(stderr,
-                "Cannot allocate enough mermory for merging ranges. Count: %zu",
-                i);
-        return false;
-      }
-      merged_ranges = grown;
-    }
-    if (i == 0) {
-      merged_ranges[merge_count] = ranges[i];
-      merge_count++;
-      continue;
-    }
-
-    IdRange prev = ranges[i - 1];
-    IdRange current = ranges[i];
-
-    if (current.start < prev.end) {
-      merged_ranges[merge_count] = (IdRange){prev.start, current.end};
-      merge_count++;
-      continue;
-    }
-    merged_ranges[merge_count] = current;
-    merge_count++;
+  if (*count == 0) {
+    return false;
   }
-  *ranges = *merged_ranges;
+
+  for (size_t i = 1; i < *count; i++) {
+    if (ranges[i].start <= ranges[merge_count].end) {
+      uintmax_t start = ranges[i].start < ranges[merge_count].start
+                            ? ranges[i].start
+                            : ranges[merge_count].start;
+      uintmax_t end = ranges[i].end > ranges[merge_count].end
+                          ? ranges[i].end
+                          : ranges[merge_count].end;
+      ranges[merge_count] = (IdRange){start, end};
+      continue;
+    }
+    ranges[++merge_count] = ranges[i];
+  }
+  *count = merge_count + 1;
 
   return true;
 }
 
-size_t get_spoiled_ingredience(FILE *file) {
+uintmax_t print_fresh_ingredient_count(IdRange *ranges, size_t count) {
+  uintmax_t fresh_count = 0;
+  for (size_t i = 0; i < count; i++) {
+    fresh_count += ranges[i].end - ranges[i].start + 1;
+  }
+  return fresh_count;
+}
+
+size_t get_spoiled_ingredience(FILE *file, uintmax_t *out) {
 
   char *line = NULL;
   IdRange *fresh_ranges = NULL;
@@ -108,7 +101,8 @@ size_t get_spoiled_ingredience(FILE *file) {
     if (strlen(line) == 0) {
       ranges_gathered = true;
       qsort(fresh_ranges, count, sizeof(*fresh_ranges), compare_ranges);
-      merge_ranges(fresh_ranges, count);
+      merge_ranges(fresh_ranges, &count);
+      *out = print_fresh_ingredient_count(fresh_ranges, count);
       continue;
     }
     if (count == range_cap) {

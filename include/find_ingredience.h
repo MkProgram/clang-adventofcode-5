@@ -9,6 +9,6 @@ typedef struct {
   uintmax_t end;
 } IdRange;
 
-size_t get_spoiled_ingredience(FILE *file);
+size_t get_spoiled_ingredience(FILE *file, uintmax_t *out);
 
 #endif // !FIND_INGREDIENCE_H

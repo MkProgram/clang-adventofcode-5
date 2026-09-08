@@ -1,4 +1,5 @@
 #include "find_ingredience.h"
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,11 +15,13 @@ int main(void) {
     return EXIT_FAILURE;
   }
 
-  size_t count = get_spoiled_ingredience(file);
+  uintmax_t fresh_count = 0;
+  size_t count = get_spoiled_ingredience(file, &fresh_count);
 
   fclose(file);
 
   printf("Fresh ingredients: %zu\n", count);
+  printf("Amount of total fresh ingredients: %" PRIuMAX "\n", fresh_count);
 
   return EXIT_SUCCESS;
 }
